@@ -8,13 +8,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NEURAL HAND">
-<title>NEURAL HAND — HUD v3.0 PWA</title>
+<title>NEURAL HAND — HUD v4.0 DUAL</title>
 
-<!-- PWA Manifest (inline as data URI for single-file PWA) -->
 <link rel="manifest" href="data:application/json,{
   %22name%22:%22NEURAL HAND HUD%22,
   %22short_name%22:%22NEURAL HUD%22,
-  %22description%22:%22AI-powered hand tracking HUD with gesture recognition%22,
+  %22description%22:%22AI-powered dual hand tracking HUD%22,
   %22start_url%22:%22.%22,
   %22display%22:%22standalone%22,
   %22background_color%22:%22%23030810%22,
@@ -23,16 +22,13 @@
   %22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%23030810'/%3E%3Ctext y='140' font-size='140' text-anchor='middle' x='96'%3E%E2%9C%8B%3C/text%3E%3C/svg%3E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]
 }">
 
-<!-- MediaPipe via CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
 <style>
-/* ─── FONTS ───────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap');
 
-/* ─── RESET & CSS VARS ────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -41,13 +37,12 @@
   --neon-green:  #39ff14;
   --neon-gold:   #ffd700;
   --neon-purple: #bf00ff;
+  --neon-orange: #ff6600;
   --bg-dark:     #030810;
   --panel-bg:    rgba(0, 20, 40, 0.88);
   --border:      rgba(0, 245, 255, 0.22);
   --font-mono:   'Share Tech Mono', monospace;
   --font-ui:     'Rajdhani', sans-serif;
-  /* Dynamic stroke width — updated via JS */
-  --stroke-width: 3;
 }
 
 html, body {
@@ -60,7 +55,6 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ─── ROOT LAYOUT ─────────────────────────────────────────────── */
 #app {
   position: relative;
   width: 100vw; height: 100vh;
@@ -71,16 +65,17 @@ html, body {
 #hud-bar {
   position: relative; z-index: 20;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 5px 16px;
+  padding: 5px 12px;
   background: var(--panel-bg);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(12px);
   flex-shrink: 0;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .hud-left, .hud-right {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 8px;
   flex: 1;
 }
 .hud-right { justify-content: flex-end; }
@@ -92,14 +87,14 @@ html, body {
 
 .hud-label {
   font-family: var(--font-ui);
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 2.5px;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: rgba(0,245,255,0.4);
   line-height: 1;
 }
 .hud-value {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--neon-cyan);
   text-shadow: 0 0 8px var(--neon-cyan);
   line-height: 1;
@@ -107,26 +102,9 @@ html, body {
 .hud-col { display: flex; flex-direction: column; gap: 2px; }
 
 .hud-title {
-  font-family: var(--font-ui); font-size: 15px; font-weight: 700;
-  letter-spacing: 5px; color: var(--neon-cyan);
+  font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+  letter-spacing: 4px; color: var(--neon-cyan);
   text-shadow: 0 0 14px var(--neon-cyan);
-}
-
-.hud-status {
-  display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
-  letter-spacing: 2px;
-}
-.status-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--neon-green);
-  box-shadow: 0 0 8px var(--neon-green), 0 0 18px var(--neon-green);
-  animation: pulse-dot 1.5s ease-in-out infinite;
-  flex-shrink: 0;
-}
-@keyframes pulse-dot {
-  0%,100% { opacity:1; transform:scale(1); }
-  50%      { opacity:0.4; transform:scale(0.7); }
 }
 
 .hud-divider {
@@ -135,25 +113,77 @@ html, body {
   flex-shrink: 0;
 }
 
+/* ─── HAND STATUS PANELS ──────────────────────────────────────── */
+.hand-status {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.3);
+  min-width: 90px;
+}
+.hand-status.active-h1 {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(0,245,255,0.3);
+}
+.hand-status.active-h2 {
+  border-color: var(--neon-orange);
+  box-shadow: 0 0 8px rgba(255,102,0,0.3);
+}
+
+.hand-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(0,245,255,0.2);
+  flex-shrink: 0;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.hand-dot.h1 { background: rgba(0,245,255,0.2); }
+.hand-dot.h2 { background: rgba(255,102,0,0.2); }
+.hand-dot.active-h1 {
+  background: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan), 0 0 16px var(--neon-cyan);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.hand-dot.active-h2 {
+  background: var(--neon-orange);
+  box-shadow: 0 0 8px var(--neon-orange), 0 0 16px var(--neon-orange);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.4; transform:scale(0.7); }
+}
+
+.hand-info { display: flex; flex-direction: column; gap: 1px; }
+.hand-name {
+  font-family: var(--font-ui); font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; color: rgba(0,245,255,0.5);
+}
+.hand-name.h2 { color: rgba(255,102,0,0.5); }
+.hand-name.active { color: var(--neon-cyan); }
+.hand-name.h2.active { color: var(--neon-orange); }
+.hand-gesture {
+  font-family: var(--font-ui); font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; color: rgba(0,245,255,0.3);
+}
+.hand-gesture.h2 { color: rgba(255,102,0,0.3); }
+.hand-gesture.active { color: var(--neon-green); }
+
 /* Gesture badge */
 #gesture-badge {
-  font-family: var(--font-ui); font-size: 11px; font-weight: 700;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 700;
   letter-spacing: 2px; padding: 2px 8px;
   border: 1px solid var(--neon-pink);
   color: var(--neon-pink);
   text-shadow: 0 0 8px var(--neon-pink);
   box-shadow: 0 0 10px rgba(255,0,110,0.3);
   opacity: 0; transition: opacity 0.3s;
-  min-width: 100px; text-align: center;
+  min-width: 90px; text-align: center;
 }
 #gesture-badge.visible { opacity: 1; }
 
-/* Stroke-width indicator bar */
-#stroke-indicator {
-  display: flex; align-items: center; gap: 6px;
-}
+/* Stroke width indicator */
 #stroke-bar-wrap {
-  width: 50px; height: 4px;
+  width: 44px; height: 4px;
   background: rgba(0,245,255,0.12);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -165,20 +195,16 @@ html, body {
   transition: width 0.1s;
 }
 
-/* Color swatch */
 #color-swatch {
-  width: 14px; height: 14px;
+  width: 13px; height: 13px;
   border-radius: 2px;
   border: 1px solid rgba(255,255,255,0.3);
   flex-shrink: 0;
 }
 
 /* Storage indicator */
-#storage-indicator {
-  display: flex; align-items: center; gap: 6px;
-}
 #storage-bar-wrap {
-  width: 48px; height: 3px;
+  width: 44px; height: 3px;
   background: rgba(0,245,255,0.12);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -190,6 +216,9 @@ html, body {
   transition: width 0.5s;
 }
 
+/* FPS */
+.hud-value.fps-val { color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green); }
+
 /* ─── VIEWPORT ────────────────────────────────────────────────── */
 #viewport {
   position: relative;
@@ -197,26 +226,31 @@ html, body {
   overflow: hidden;
 }
 
+/* Camera video — FIXED: mirror only on canvas, video shows raw */
 #video {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
+  /* Mirror so user sees themselves naturally */
   transform: scaleX(-1);
-  opacity: 0.7;
+  opacity: 0.75;
+  z-index: 1;
 }
 
 #canvas {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
+  z-index: 2;
+  /* Canvas draws mirrored coordinates to match video */
 }
 
-/* ─── ATMOSPHERIC OVERLAYS ────────────────────────────────────── */
+/* Atmospheric overlays */
 #grain {
   position: absolute; inset: 0;
   pointer-events: none; z-index: 10;
-  opacity: 0.05;
+  opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  animation: grain-shift 0.1s steps(1) infinite;
+  animation: grain-shift 0.12s steps(1) infinite;
 }
 @keyframes grain-shift {
   0%   { background-position: 0 0; }
@@ -232,20 +266,20 @@ html, body {
   background: repeating-linear-gradient(
     to bottom,
     transparent 0px, transparent 3px,
-    rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px
+    rgba(0,0,0,0.10) 3px, rgba(0,0,0,0.10) 4px
   );
 }
 
 #vignette {
   position: absolute; inset: 0;
   pointer-events: none; z-index: 9;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
 }
 
 /* Corner brackets */
 .corner {
   position: absolute; z-index: 15;
-  width: 32px; height: 32px;
+  width: 30px; height: 30px;
   pointer-events: none;
 }
 .corner::before, .corner::after {
@@ -275,23 +309,42 @@ html, body {
   font-family: var(--font-ui); font-size: 11px; font-weight:700;
   letter-spacing: 1px; color: var(--neon-gold);
   text-shadow: 0 0 8px var(--neon-gold);
-  text-align: center; white-space: nowrap;
+  text-align: center; white-space: pre-line;
+}
+
+/* ─── OPEN PALM CLEAR PROGRESS ────────────────────────────────── */
+#open-ring-wrap {
+  position: absolute; top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  z-index: 20; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s;
+  margin-left: 60px;
+}
+#open-ring-wrap.visible { opacity: 1; }
+#open-ring-svg { width: 70px; height: 70px; }
+#open-ring-text {
+  position: absolute; top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  font-family: var(--font-ui); font-size: 10px; font-weight:700;
+  letter-spacing: 1px; color: var(--neon-pink);
+  text-shadow: 0 0 8px var(--neon-pink);
+  text-align: center; white-space: pre-line;
 }
 
 /* ─── BOTTOM BAR ──────────────────────────────────────────────── */
 #bottom-bar {
   position: absolute; bottom:0; left:0; right:0; z-index:20;
-  display: flex; align-items: center; justify-content: center; gap: 18px;
-  padding: 5px 16px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 4px 16px;
   background: var(--panel-bg);
   border-top: 1px solid var(--border);
   backdrop-filter: blur(12px);
-  font-size: 9px; letter-spacing: 2px;
+  font-size: 8px; letter-spacing: 2px;
   color: rgba(0,245,255,0.35);
   font-family: var(--font-ui); font-weight: 500;
   flex-wrap: wrap;
 }
-.hint { display:flex; align-items:center; gap:5px; }
+.hint { display:flex; align-items:center; gap:4px; }
 .hint-key {
   padding: 1px 5px;
   border: 1px solid rgba(0,245,255,0.28);
@@ -300,7 +353,7 @@ html, body {
 
 /* ─── SCREENSHOT GALLERY ──────────────────────────────────────── */
 #gallery-panel {
-  position: absolute; bottom: 32px; left: 0; right: 0;
+  position: absolute; bottom: 30px; left: 0; right: 0;
   z-index: 25;
   background: var(--panel-bg);
   border-top: 1px solid var(--border);
@@ -308,7 +361,7 @@ html, body {
   padding: 8px 12px;
   transform: translateY(100%);
   transition: transform 0.35s cubic-bezier(0.22,1,0.36,1);
-  max-height: 160px;
+  max-height: 155px;
 }
 #gallery-panel.open { transform: translateY(0); }
 
@@ -372,7 +425,7 @@ html, body {
   width: 100%; text-align: center;
 }
 
-/* ─── TOAST NOTIFICATION ──────────────────────────────────────── */
+/* ─── TOAST ──────────────────────────────────────────────────── */
 #toast {
   position: absolute; top: 56px; left: 50%;
   transform: translateX(-50%) translateY(-10px);
@@ -389,18 +442,14 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ─── CLEAR OVERLAY ───────────────────────────────────────────── */
+/* ─── CLEAR FLASH ─────────────────────────────────────────────── */
 #clear-flash {
   position: absolute; inset: 0; z-index: 40;
   background: rgba(255, 0, 110, 0.12);
   pointer-events: none; opacity: 0;
-  animation: none;
 }
 #clear-flash.flash { animation: flash-anim 0.5s ease-out forwards; }
-@keyframes flash-anim {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
-}
+@keyframes flash-anim { 0%{opacity:1} 100%{opacity:0} }
 
 /* ─── LOADING SCREEN ──────────────────────────────────────────── */
 #loading {
@@ -410,7 +459,6 @@ html, body {
   align-items: center; justify-content: center; gap: 16px;
 }
 #loading.hidden { display: none; }
-
 .loading-title {
   font-family: var(--font-ui); font-size: 26px; font-weight: 700;
   letter-spacing: 10px; color: var(--neon-cyan);
@@ -461,58 +509,59 @@ html, body {
   <div id="hud-bar">
 
     <div class="hud-left">
-      <!-- System status -->
-      <div class="hud-status">
-        <div class="status-dot"></div>
-        <span>ACTIVE</span>
-      </div>
-      <div class="hud-divider"></div>
       <!-- FPS -->
       <div class="hud-col">
         <span class="hud-label">FPS</span>
-        <span class="hud-value" id="fps-counter">-- fps</span>
+        <span class="hud-value fps-val" id="fps-counter">-- fps</span>
       </div>
       <div class="hud-divider"></div>
-      <!-- Velocity + Peak -->
-      <div class="hud-col">
-        <span class="hud-label">Velocity</span>
-        <span class="hud-value" id="vel-display">0 px/s</span>
+      <!-- Hand 1 Status -->
+      <div class="hand-status" id="hand1-status">
+        <div class="hand-dot h1" id="hand1-dot"></div>
+        <div class="hand-info">
+          <span class="hand-name h1" id="hand1-label">HAND 1</span>
+          <span class="hand-gesture" id="hand1-gesture">—</span>
+        </div>
       </div>
-      <div class="hud-divider"></div>
-      <div class="hud-col">
-        <span class="hud-label">Peak ⚡</span>
-        <span class="hud-value" id="peak-vel">0 px/s</span>
+      <!-- Hand 2 Status -->
+      <div class="hand-status" id="hand2-status">
+        <div class="hand-dot h2" id="hand2-dot"></div>
+        <div class="hand-info">
+          <span class="hand-name h2" id="hand2-label">HAND 2</span>
+          <span class="hand-gesture h2" id="hand2-gesture">—</span>
+        </div>
       </div>
     </div>
 
     <div class="hud-center">
       <div class="hud-title">NEURAL HAND HUD</div>
+      <div id="gesture-badge">—</div>
     </div>
 
     <div class="hud-right">
-      <!-- Stroke width indicator -->
-      <div class="hud-col" id="stroke-indicator">
+      <!-- Velocity -->
+      <div class="hud-col">
+        <span class="hud-label">Vel</span>
+        <span class="hud-value" id="vel-display">— px/s</span>
+      </div>
+      <div class="hud-divider"></div>
+      <!-- Stroke width -->
+      <div class="hud-col">
         <span class="hud-label">Stroke</span>
         <div id="stroke-bar-wrap"><div id="stroke-bar"></div></div>
       </div>
       <div class="hud-divider"></div>
-      <!-- Active color -->
+      <!-- Color swatch -->
       <div class="hud-col">
         <span class="hud-label">Color</span>
-        <div style="display:flex;align-items:center;gap:5px">
+        <div style="display:flex;align-items:center;gap:4px">
           <div id="color-swatch"></div>
           <span class="hud-value" id="color-hue">180°</span>
         </div>
       </div>
       <div class="hud-divider"></div>
-      <!-- Gesture -->
-      <div class="hud-col">
-        <span class="hud-label">Gesture</span>
-        <span id="gesture-badge">—</span>
-      </div>
-      <div class="hud-divider"></div>
       <!-- Storage -->
-      <div class="hud-col" id="storage-indicator">
+      <div class="hud-col">
         <span class="hud-label">Storage</span>
         <div style="display:flex;align-items:center;gap:4px">
           <div id="storage-bar-wrap"><div id="storage-bar"></div></div>
@@ -524,7 +573,9 @@ html, body {
 
   <!-- ── MAIN VIEWPORT ────────────────────────────────────── -->
   <div id="viewport">
+    <!-- Video feed: mirrored via CSS so user sees themselves naturally -->
     <video id="video" autoplay muted playsinline></video>
+    <!-- Canvas: also draws mirrored (1-x) coordinates -->
     <canvas id="canvas"></canvas>
 
     <!-- Atmospheric overlays -->
@@ -538,7 +589,7 @@ html, body {
     <div class="corner bl"></div>
     <div class="corner br"></div>
 
-    <!-- FIST hold progress ring -->
+    <!-- FIST hold progress ring (screenshot) -->
     <div id="fist-ring-wrap">
       <svg id="fist-ring-svg" viewBox="0 0 90 90">
         <circle cx="45" cy="45" r="38" fill="none"
@@ -550,7 +601,22 @@ html, body {
           transform="rotate(-90 45 45)"
           style="filter:drop-shadow(0 0 6px #ffd700)"/>
       </svg>
-      <div id="fist-ring-text">HOLD<br>✊</div>
+      <div id="fist-ring-text">HOLD&#10;✊</div>
+    </div>
+
+    <!-- OPEN PALM clear progress ring -->
+    <div id="open-ring-wrap">
+      <svg id="open-ring-svg" viewBox="0 0 70 70">
+        <circle cx="35" cy="35" r="28" fill="none"
+          stroke="rgba(255,0,110,0.12)" stroke-width="3"/>
+        <circle id="open-ring-prog" cx="35" cy="35" r="28" fill="none"
+          stroke="#ff006e" stroke-width="3"
+          stroke-linecap="round"
+          stroke-dasharray="176" stroke-dashoffset="176"
+          transform="rotate(-90 35 35)"
+          style="filter:drop-shadow(0 0 5px #ff006e)"/>
+      </svg>
+      <div id="open-ring-text">CLEAR&#10;👋</div>
     </div>
 
     <!-- Clear flash overlay -->
@@ -558,11 +624,11 @@ html, body {
 
     <!-- Bottom hints bar -->
     <div id="bottom-bar">
-      <div class="hint"><span class="hint-key">PINCH</span><span>Draw</span></div>
-      <div class="hint"><span class="hint-key">PINCH SPREAD</span><span>Stroke size</span></div>
-      <div class="hint"><span class="hint-key">FIST 3s</span><span>Screenshot ✊</span></div>
+      <div class="hint"><span class="hint-key">PINCH ✊</span><span>Draw (each hand)</span></div>
+      <div class="hint"><span class="hint-key">OPEN 2s 👋</span><span>Clear this hand</span></div>
+      <div class="hint"><span class="hint-key">FIST BOTH 3s</span><span>Clear ALL + Storage</span></div>
+      <div class="hint"><span class="hint-key">FIST 3s ✊</span><span>Screenshot</span></div>
       <div class="hint"><span class="hint-key">PEACE ✌</span><span>Shapes</span></div>
-      <div class="hint"><span class="hint-key">OPEN 👋</span><span>Clear all</span></div>
     </div>
   </div>
 
@@ -576,7 +642,7 @@ html, body {
       </div>
     </div>
     <div id="gallery-scroll">
-      <div class="gallery-empty" id="gallery-empty">No screenshots yet. Hold ✊ FIST for 3 seconds to capture!</div>
+      <div class="gallery-empty" id="gallery-empty">No screenshots yet. Hold ✊ FIST 3s to capture!</div>
     </div>
   </div>
 
@@ -599,67 +665,39 @@ html, body {
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════
-//  SERVICE WORKER REGISTRATION (inline blob — offline ready)
+//  SERVICE WORKER
 // ═══════════════════════════════════════════════════════════════
 const SW_CODE = `
-const CACHE_NAME = 'neural-hand-v3';
+const CACHE_NAME = 'neural-hand-v4';
 const CDN_URLS = [
   'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js',
 ];
-
-// Cache CDN scripts on install
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CDN_URLS).catch(() => {}))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(CDN_URLS).catch(()=>{})).then(()=>self.skipWaiting()));
 });
-
-// Clean old caches on activate
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
-
-// Cache-first strategy for CDN, network-first for everything else
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('cdn.jsdelivr.net') || e.request.url.includes('fonts.googleapis.com')) {
-    e.respondWith(
-      caches.open(CACHE_NAME).then(cache =>
-        cache.match(e.request).then(cached =>
-          cached || fetch(e.request).then(res => {
-            cache.put(e.request, res.clone());
-            return res;
-          }).catch(() => cached)
-        )
-      )
-    );
+    e.respondWith(caches.open(CACHE_NAME).then(cache=>cache.match(e.request).then(cached=>cached||fetch(e.request).then(res=>{cache.put(e.request,res.clone());return res;}).catch(()=>cached))));
   }
 });
 `;
-
-// Register service worker from an inline blob
 if ('serviceWorker' in navigator) {
   const swBlob = new Blob([SW_CODE], { type: 'application/javascript' });
-  const swUrl  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swUrl)
-    .then(() => console.log('[SW] Registered'))
-    .catch(e  => console.warn('[SW] Failed:', e));
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+    .catch(e => console.warn('[SW]', e));
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PWA INSTALL PROMPT
+//  PWA INSTALL
 // ═══════════════════════════════════════════════════════════════
 let _deferredInstall = null;
 window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  _deferredInstall = e;
+  e.preventDefault(); _deferredInstall = e;
   document.getElementById('pwa-banner').style.display = 'block';
 });
 document.getElementById('pwa-banner').addEventListener('click', () => {
@@ -675,9 +713,7 @@ document.getElementById('pwa-banner').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════
 //  INDEXEDDB — Screenshot storage
 // ═══════════════════════════════════════════════════════════════
-const DB_NAME    = 'NeuralHandDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'screenshots';
+const DB_NAME = 'NeuralHandDB', DB_VERSION = 1, STORE_NAME = 'screenshots';
 let db = null;
 
 function openDB() {
@@ -685,51 +721,40 @@ function openDB() {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE_NAME)) {
-        d.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-      }
+      if (!d.objectStoreNames.contains(STORE_NAME))
+        d.createObjectStore(STORE_NAME, { keyPath:'id', autoIncrement:true });
     };
     req.onsuccess = e => { db = e.target.result; res(db); };
     req.onerror   = e => rej(e.target.error);
   });
 }
-
 function saveScreenshot(dataUrl) {
   return new Promise((res, rej) => {
-    const tx    = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const req   = store.add({ dataUrl, ts: Date.now() });
-    req.onsuccess = () => res(req.result);
-    req.onerror   = () => rej(req.error);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).add({ dataUrl, ts: Date.now() });
+    req.onsuccess = () => res(); req.onerror = () => rej(req.error);
   });
 }
-
 function getAllScreenshots() {
   return new Promise((res, rej) => {
-    const tx    = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const req   = store.getAll();
-    req.onsuccess = () => res(req.result);
-    req.onerror   = () => rej(req.error);
+    const req = db.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
   });
 }
-
 function clearAllScreenshots() {
   return new Promise((res, rej) => {
-    const tx    = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const req   = store.clear();
-    req.onsuccess = () => res();
-    req.onerror   = () => rej(req.error);
+    const req = db.transaction(STORE_NAME,'readwrite').objectStore(STORE_NAME).clear();
+    req.onsuccess = () => res(); req.onerror = () => rej(req.error);
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  LOCALSTORAGE — Persistent user preferences
+//  LOCALSTORAGE — Persistent drawing trails + preferences
 // ═══════════════════════════════════════════════════════════════
 const LS_KEYS = {
-  PEAK_VEL:   'nh_peak_velocity',
-  LAST_HUE:   'nh_last_hue',
+  TRAILS:    'nh_persistent_trails',
+  PEAK_VEL:  'nh_peak_velocity',
+  LAST_HUE:  'nh_last_hue',
 };
 
 function lsGet(key, fallback) {
@@ -737,36 +762,63 @@ function lsGet(key, fallback) {
   catch { return fallback; }
 }
 function lsSet(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.warn('[LS]', e); }
+}
+
+// Save drawing trails to localStorage (debounced)
+let _saveTrailsTimer = null;
+function saveTrailsToLS() {
+  clearTimeout(_saveTrailsTimer);
+  _saveTrailsTimer = setTimeout(() => {
+    // Only save up to last 200 trails to keep size manageable
+    const toSave = trails.slice(-200).map(t => ({
+      points: t.points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y), hue: Math.round(p.hue), sw: Math.round(p.sw*10)/10 })),
+      alpha: 1.0, // restore at full alpha
+      sw: t.sw
+    }));
+    lsSet(LS_KEYS.TRAILS, toSave);
+    updateStorageHUD();
+  }, 800);
 }
 
 // ═══════════════════════════════════════════════════════════════
 //  DOM HANDLES
 // ═══════════════════════════════════════════════════════════════
-const video       = document.getElementById('video');
-const canvas      = document.getElementById('canvas');
-const ctx         = canvas.getContext('2d');
-const fpsEl       = document.getElementById('fps-counter');
-const velEl       = document.getElementById('vel-display');
-const peakVelEl   = document.getElementById('peak-vel');
-const gestureEl   = document.getElementById('gesture-badge');
-const loadingEl   = document.getElementById('loading');
-const loadingSub  = document.getElementById('loading-sub');
-const strokeBar   = document.getElementById('stroke-bar');
-const colorSwatch = document.getElementById('color-swatch');
-const colorHueEl  = document.getElementById('color-hue');
-const storageBar  = document.getElementById('storage-bar');
-const storageText = document.getElementById('storage-text');
-const fistRingWrap = document.getElementById('fist-ring-wrap');
-const fistRingProg = document.getElementById('fist-ring-prog');
-const fistRingText = document.getElementById('fist-ring-text');
-const galleryPanel = document.getElementById('gallery-panel');
+const video         = document.getElementById('video');
+const canvas        = document.getElementById('canvas');
+const ctx           = canvas.getContext('2d');
+const fpsEl         = document.getElementById('fps-counter');
+const velEl         = document.getElementById('vel-display');
+const gestureEl     = document.getElementById('gesture-badge');
+const loadingEl     = document.getElementById('loading');
+const loadingSub    = document.getElementById('loading-sub');
+const strokeBar     = document.getElementById('stroke-bar');
+const colorSwatch   = document.getElementById('color-swatch');
+const colorHueEl    = document.getElementById('color-hue');
+const storageBar    = document.getElementById('storage-bar');
+const storageText   = document.getElementById('storage-text');
+const fistRingWrap  = document.getElementById('fist-ring-wrap');
+const fistRingProg  = document.getElementById('fist-ring-prog');
+const fistRingText  = document.getElementById('fist-ring-text');
+const openRingWrap  = document.getElementById('open-ring-wrap');
+const openRingProg  = document.getElementById('open-ring-prog');
+const galleryPanel  = document.getElementById('gallery-panel');
 const galleryScroll = document.getElementById('gallery-scroll');
 const galleryEmpty  = document.getElementById('gallery-empty');
 const toastEl       = document.getElementById('toast');
 const clearFlash    = document.getElementById('clear-flash');
 
-// ─── Canvas resize to fill viewport
+// Hand 1 & 2 HUD elements
+const hand1Status  = document.getElementById('hand1-status');
+const hand1Dot     = document.getElementById('hand1-dot');
+const hand1Label   = document.getElementById('hand1-label');
+const hand1Gesture = document.getElementById('hand1-gesture');
+const hand2Status  = document.getElementById('hand2-status');
+const hand2Dot     = document.getElementById('hand2-dot');
+const hand2Label   = document.getElementById('hand2-label');
+const hand2Gesture = document.getElementById('hand2-gesture');
+
+// ─── Canvas resize
 function resizeCanvas() {
   const vp = document.getElementById('viewport');
   canvas.width  = vp.clientWidth;
@@ -778,46 +830,72 @@ window.addEventListener('resize', resizeCanvas);
 // ═══════════════════════════════════════════════════════════════
 //  APPLICATION STATE
 // ═══════════════════════════════════════════════════════════════
+
+// Per-hand state factory
+function makeHandState(colorOffset) {
+  return {
+    landmarks:    null,
+    prevIndexTip: null,
+    velocity:     0,
+    drawHue:      lsGet(LS_KEYS.LAST_HUE, 180) + colorOffset,
+    isPinching:   false,
+    strokeWidth:  3,
+    lastGesture:  '',
+    gestureTimer: 0,
+    openHoldStart: 0,
+    openHolding:  false,
+    currentStroke: null,
+  };
+}
+
+const handStates = [
+  makeHandState(0),    // Hand 0 — cyan-ish hues
+  makeHandState(120),  // Hand 1 — orange/green-ish hues
+];
+
 const state = {
-  landmarks:    null,
-  prevIndexTip: null,
-  velocity:     0,
-  drawHue:      lsGet(LS_KEYS.LAST_HUE, 180),  // restore last color
-  isPinching:   false,
-  strokeWidth:  3,          // dynamic stroke width (updated by pinch spread)
-  lastGesture:  '',
-  gestureTimer: 0,
-  peakVelocity: lsGet(LS_KEYS.PEAK_VEL, 0),    // restored from LS
-
-  // FIST hold tracking (for screenshot)
-  fistHoldStart:  0,
-  fistHolding:    false,
-  fistDone:       false,   // cooldown: prevent multiple saves in one hold
-
-  // OPEN gesture clear tracking
-  openHoldStart:  0,
-  openHolding:    false,
-
-  // Gallery open state
-  galleryOpen: false,
+  peakVelocity:  lsGet(LS_KEYS.PEAK_VEL, 0),
+  galleryOpen:   false,
+  // Fist (both hands) for screenshot / nuclear clear
+  fistHoldStart: 0,
+  fistHolding:   false,
+  fistDone:      false,
+  // Per-hand fist tracking (for dual-fist clear-all)
+  fistPerHand:   [false, false],
 };
 
-// ─── Trail & particle systems
+// Global trail arrays (persistent)
 const trails        = [];
-let   currentStroke = null;
 const particles     = [];
 const floatingShapes = [];
 
-// ─── FPS tracking
+// Load saved trails from localStorage on startup
+(function loadSavedTrails() {
+  const saved = lsGet(LS_KEYS.TRAILS, null);
+  if (saved && Array.isArray(saved)) {
+    saved.forEach(t => trails.push({ points: t.points, alpha: 1.0, sw: t.sw || 3 }));
+    console.log(`[Trails] Loaded ${saved.length} saved trails`);
+  }
+})();
+
+// FPS tracking
 let lastFrameTime = performance.now();
 let frameTimes    = [];
 
-// ─── Fist progress ring config
-const RING_CIRCUMFERENCE = 239;  // 2 * PI * 38 (radius)
-const FIST_HOLD_MS       = 3000; // 3 seconds to capture
+// Ring constants
+const RING_CIRC   = 239; // 2*PI*38
+const OPEN_CIRC   = 176; // 2*PI*28
+const FIST_HOLD_MS  = 3000;
+const OPEN_HOLD_MS  = 2000; // 2s for clear hand
+
+// Hand colors for drawing
+const HAND_COLORS = [
+  { hue: 185, label: 'HAND 1' },  // Cyan
+  { hue: 25,  label: 'HAND 2' },  // Orange
+];
 
 // ═══════════════════════════════════════════════════════════════
-//  TOAST NOTIFICATION HELPER
+//  TOAST
 // ═══════════════════════════════════════════════════════════════
 let _toastTimeout = null;
 function showToast(msg, duration = 2200) {
@@ -828,124 +906,131 @@ function showToast(msg, duration = 2200) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  STORAGE SIZE ESTIMATOR — updates the HUD storage indicator
+//  STORAGE HUD
 // ═══════════════════════════════════════════════════════════════
 async function updateStorageHUD() {
   try {
+    let usageKB = 0, pct = 0;
     if ('storage' in navigator && 'estimate' in navigator.storage) {
       const { usage, quota } = await navigator.storage.estimate();
-      const usageKB = Math.round(usage / 1024);
-      const pct     = Math.min(100, (usage / quota) * 100);
-      storageText.textContent = usageKB > 1024
-        ? `${(usageKB/1024).toFixed(1)}MB`
-        : `${usageKB}KB`;
-      storageBar.style.width = `${pct}%`;
-      // Color: green < 50%, gold 50–80%, pink > 80%
-      storageBar.style.background = pct > 80
-        ? 'var(--neon-pink)'
-        : pct > 50
-          ? 'var(--neon-gold)'
-          : 'var(--neon-cyan)';
+      usageKB = Math.round(usage / 1024);
+      pct     = Math.min(100, (usage / quota) * 100);
     } else {
-      // Fallback: just count localStorage bytes
+      // Fallback: count localStorage bytes
       let lsSize = 0;
-      for (let k in localStorage) { if (localStorage.hasOwnProperty(k)) lsSize += localStorage[k].length * 2; }
-      storageText.textContent = `${Math.round(lsSize/1024)}KB`;
+      for (let k in localStorage) {
+        if (localStorage.hasOwnProperty(k)) lsSize += localStorage[k].length * 2;
+      }
+      usageKB = Math.round(lsSize / 1024);
+      pct     = Math.min(100, lsSize / (5 * 1024 * 1024) * 100); // assume 5MB quota
     }
+    storageText.textContent = usageKB > 1024
+      ? `${(usageKB/1024).toFixed(1)}MB` : `${usageKB}KB`;
+    storageBar.style.width = `${pct}%`;
+    storageBar.style.background = pct > 80 ? 'var(--neon-pink)' : pct > 50 ? 'var(--neon-gold)' : 'var(--neon-cyan)';
   } catch {}
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SCREENSHOT GALLERY — render from IndexedDB
+//  GALLERY
 // ═══════════════════════════════════════════════════════════════
 async function refreshGallery() {
   if (!db) return;
   const shots = await getAllScreenshots();
-  // Clear previous thumbs (keep empty notice)
-  const existing = galleryScroll.querySelectorAll('.gallery-thumb');
-  existing.forEach(el => el.remove());
-
-  if (shots.length === 0) {
-    galleryEmpty.style.display = 'block';
-    return;
-  }
-  galleryEmpty.style.display = 'none';
-
+  galleryScroll.querySelectorAll('.gallery-thumb').forEach(el => el.remove());
+  galleryEmpty.style.display = shots.length === 0 ? 'block' : 'none';
   shots.slice().reverse().forEach(shot => {
     const thumb = document.createElement('div');
     thumb.className = 'gallery-thumb';
-
     const img = document.createElement('img');
-    img.src = shot.dataUrl;
-    img.loading = 'lazy';
-    img.alt = 'Screenshot';
-
+    img.src = shot.dataUrl; img.loading = 'lazy'; img.alt = 'Screenshot';
     const label = document.createElement('div');
     label.className = 'gallery-thumb-label';
     label.textContent = new Date(shot.ts).toLocaleTimeString();
-
-    // Click to download
     thumb.addEventListener('click', () => {
       const a = document.createElement('a');
-      a.href = shot.dataUrl;
-      a.download = `neural-hand-${shot.ts}.png`;
-      a.click();
+      a.href = shot.dataUrl; a.download = `neural-hand-${shot.ts}.png`; a.click();
     });
-
-    thumb.appendChild(img);
-    thumb.appendChild(label);
+    thumb.appendChild(img); thumb.appendChild(label);
     galleryScroll.appendChild(thumb);
   });
-
   updateStorageHUD();
 }
 
-// Take a screenshot of the current canvas state
 async function takeScreenshot() {
   if (!db) return;
   const dataUrl = canvas.toDataURL('image/png');
   await saveScreenshot(dataUrl);
   await refreshGallery();
   showToast('📸 SCREENSHOT SAVED');
-  updateStorageHUD();
-  // Open gallery if closed
   if (!state.galleryOpen) toggleGallery();
 }
 
-// Toggle gallery visibility
 function toggleGallery() {
   state.galleryOpen = !state.galleryOpen;
   galleryPanel.classList.toggle('open', state.galleryOpen);
   document.getElementById('toggle-gallery-btn').textContent = state.galleryOpen ? 'CLOSE' : 'OPEN';
 }
 
-// ─── Gallery button handlers
 document.getElementById('toggle-gallery-btn').addEventListener('click', toggleGallery);
 document.getElementById('clear-gallery-btn').addEventListener('click', async () => {
   if (!confirm('Clear all screenshots?')) return;
-  await clearAllScreenshots();
-  refreshGallery();
-  showToast('🗑 GALLERY CLEARED');
-  updateStorageHUD();
+  await clearAllScreenshots(); refreshGallery(); showToast('🗑 GALLERY CLEARED'); updateStorageHUD();
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  MEDIAPIPE SETUP
+//  GEOMETRY HELPERS
 // ═══════════════════════════════════════════════════════════════
-loadingSub.textContent = 'LOADING HAND TRACKING MODEL…';
+function dist2D(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function isFingerExtended(lm, tip, mcp) { return lm[tip].y < lm[mcp].y; }
+
+// ═══════════════════════════════════════════════════════════════
+//  GESTURE DETECTION
+//  Returns: 'PINCH' | 'FIST' | 'PEACE' | 'OPEN' | 'IDLE'
+// ═══════════════════════════════════════════════════════════════
+function detectGesture(lm) {
+  if (!lm) return 'IDLE';
+  const pinchDist = dist2D(lm[4], lm[8]);
+  if (pinchDist < 0.055) return 'PINCH';
+  const idxExt = isFingerExtended(lm, 8,  5);
+  const midExt = isFingerExtended(lm, 12, 9);
+  const rinExt = isFingerExtended(lm, 16, 13);
+  const pnkExt = isFingerExtended(lm, 20, 17);
+  if (!idxExt && !midExt && !rinExt && !pnkExt) return 'FIST';
+  if ( idxExt &&  midExt && !rinExt && !pnkExt) return 'PEACE';
+  if ( idxExt &&  midExt &&  rinExt &&  pnkExt) return 'OPEN';
+  return 'IDLE';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STROKE WIDTH — from thumb-index spread
+// ═══════════════════════════════════════════════════════════════
+function updateStrokeWidth(lm, hs) {
+  if (!lm) return;
+  const spread  = dist2D(lm[4], lm[8]);
+  const clamped = Math.max(0.06, Math.min(0.35, spread));
+  const t       = (clamped - 0.06) / (0.35 - 0.06);
+  hs.strokeWidth = 1 + t * 15;
+  strokeBar.style.width = `${(t * 100).toFixed(0)}%`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MEDIAPIPE SETUP — maxNumHands: 2
+// ═══════════════════════════════════════════════════════════════
+loadingSub.textContent = 'LOADING DUAL HAND TRACKING MODEL…';
 
 const hands = new Hands({
   locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
 hands.setOptions({
-  maxNumHands:             1,
-  modelComplexity:         1,
-  minDetectionConfidence:  0.72,
-  minTrackingConfidence:   0.62,
+  maxNumHands:            2,      // ← DUAL HAND
+  modelComplexity:        1,
+  minDetectionConfidence: 0.70,
+  minTrackingConfidence:  0.60,
 });
 hands.onResults(onResults);
 
-// ─── Camera setup
+// ─── Camera: feed raw frames to MediaPipe
 const camera = new Camera(video, {
   onFrame: async () => { await hands.send({ image: video }); },
   width:  1280,
@@ -955,90 +1040,50 @@ const camera = new Camera(video, {
 
 camera.start()
   .then(() => {
-    loadingSub.textContent = 'CAMERA ONLINE — CALIBRATING…';
+    loadingSub.textContent = 'DUAL CAMERA ONLINE — CALIBRATING…';
     setTimeout(() => loadingEl.classList.add('hidden'), 2500);
   })
-  .catch(() => {
-    loadingSub.textContent = 'CAMERA ACCESS DENIED — CHECK PERMISSIONS';
+  .catch(err => {
+    console.error('[Camera]', err);
+    loadingSub.textContent = '⚠ CAMERA ACCESS DENIED — CHECK PERMISSIONS';
   });
 
-// ─── Store MediaPipe results in state
+// ─── MediaPipe results → per-hand state
 function onResults(results) {
-  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    state.landmarks = results.multiHandLandmarks[0];
-  } else {
-    state.landmarks = null;
-    if (currentStroke && currentStroke.length > 1) {
-      trails.push({ points: currentStroke, alpha: 1.0 });
+  const detected = results.multiHandLandmarks || [];
+  const handedness = results.multiHandedness || [];
+
+  // Reset both hands each frame
+  handStates[0].landmarks = null;
+  handStates[1].landmarks = null;
+
+  for (let i = 0; i < detected.length; i++) {
+    // MediaPipe labels from its perspective, but camera is mirrored
+    // We assign index 0 = first detected, index 1 = second detected
+    // Sorting by x position for consistency (left of screen = hand 0)
+    const lm = detected[i];
+    const handIdx = i < 2 ? i : 1;
+    handStates[handIdx].landmarks = lm;
+  }
+
+  // If hands lost, finalize strokes
+  for (let h = 0; h < 2; h++) {
+    if (!handStates[h].landmarks) {
+      const hs = handStates[h];
+      if (hs.currentStroke && hs.currentStroke.length > 1) {
+        trails.push({ points: [...hs.currentStroke], alpha: 1.0, sw: hs.strokeWidth });
+        saveTrailsToLS();
+      }
+      hs.currentStroke = null;
+      hs.isPinching    = false;
     }
-    currentStroke     = null;
-    state.isPinching  = false;
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  GEOMETRY HELPERS
+//  PARTICLE SYSTEM
 // ═══════════════════════════════════════════════════════════════
-
-/** Euclidean distance in normalised landmark space */
-function dist2D(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-/**
- * isFingerExtended — fingertip above its MCP (y-axis; lower y = higher on screen).
- * Works for standard front-facing camera view.
- */
-function isFingerExtended(lm, tip, mcp) {
-  return lm[tip].y < lm[mcp].y;
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  GESTURE DETECTION
-//  Returns: 'PINCH' | 'FIST' | 'PEACE' | 'OPEN' | 'IDLE'
-// ═══════════════════════════════════════════════════════════════
-function detectGesture(lm) {
-  if (!lm) return 'IDLE';
-
-  const thumbTip  = lm[4];
-  const indexTip  = lm[8];
-
-  const pinchDist = dist2D(thumbTip, indexTip);
-  if (pinchDist < 0.055) return 'PINCH';
-
-  const indexExt  = isFingerExtended(lm, 8,  5);
-  const middleExt = isFingerExtended(lm, 12, 9);
-  const ringExt   = isFingerExtended(lm, 16, 13);
-  const pinkyExt  = isFingerExtended(lm, 20, 17);
-
-  if (!indexExt && !middleExt && !ringExt && !pinkyExt) return 'FIST';
-  if ( indexExt &&  middleExt && !ringExt && !pinkyExt) return 'PEACE';
-  if ( indexExt &&  middleExt &&  ringExt &&  pinkyExt) return 'OPEN';
-
-  return 'IDLE';
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  DYNAMIC STROKE WIDTH — controlled by thumb-index spread distance
-//  dist2D(thumb, index) ranges roughly 0.06 (just past pinch) to 0.35
-//  We map this to stroke width 1–16 px
-// ═══════════════════════════════════════════════════════════════
-function updateStrokeWidth(lm) {
-  if (!lm) return;
-  const spread = dist2D(lm[4], lm[8]);
-  // Remap 0.06–0.35 → 1–16
-  const clamped = Math.max(0.06, Math.min(0.35, spread));
-  const t       = (clamped - 0.06) / (0.35 - 0.06);
-  state.strokeWidth = 1 + t * 15;  // 1 to 16
-
-  // Update HUD bar (0–100%)
-  strokeBar.style.width = `${(t * 100).toFixed(0)}%`;
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  PARTICLE SYSTEM — burst from a point
-// ═══════════════════════════════════════════════════════════════
-function spawnBurst(cx, cy, count = 55, baseHue = 30) {
+function spawnBurst(cx, cy, count = 45, baseHue = 30) {
   for (let i = 0; i < count; i++) {
     const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
     const speed = 2 + Math.random() * 7;
@@ -1047,14 +1092,14 @@ function spawnBurst(cx, cy, count = 55, baseHue = 30) {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed - 1,
       life: 1.0,
-      hue: (baseHue + Math.random() * 60) % 360,
+      hue:  (baseHue + Math.random() * 60) % 360,
       size: 1.5 + Math.random() * 3,
     });
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  FLOATING SHAPES — spawned by PEACE gesture
+//  FLOATING SHAPES
 // ═══════════════════════════════════════════════════════════════
 function spawnShape(x, y) {
   floatingShapes.push({
@@ -1062,86 +1107,87 @@ function spawnShape(x, y) {
     type:  Math.random() < 0.5 ? 'heart' : 'star',
     birth: performance.now(),
     life:  2600,
-    scale: 0,
-    vy:    -1.1,
-    opacity: 1,
-    hue: Math.random() * 360,
+    scale: 0, vy: -1.1, opacity: 1,
+    hue:   Math.random() * 360,
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CLEAR ALL — clears canvas trails + localStorage
+//  CLEAR ALL (both hands, nuclear)
 // ═══════════════════════════════════════════════════════════════
 function clearAll() {
-  // Clear in-memory drawing data
-  trails.length         = 0;
-  particles.length      = 0;
-  floatingShapes.length = 0;
-  currentStroke         = null;
-  state.isPinching      = false;
-
-  // Hard-clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Reset peak velocity in LS
+  trails.length = 0; particles.length = 0; floatingShapes.length = 0;
+  handStates.forEach(hs => { hs.currentStroke = null; hs.isPinching = false; });
+  // Wipe localStorage trails
+  lsSet(LS_KEYS.TRAILS, []);
   state.peakVelocity = 0;
   lsSet(LS_KEYS.PEAK_VEL, 0);
-  peakVelEl.textContent = '0 px/s';
-
-  // Visual feedback
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   clearFlash.classList.remove('flash');
-  void clearFlash.offsetWidth; // reflow trick to restart animation
+  void clearFlash.offsetWidth;
   clearFlash.classList.add('flash');
+  showToast('💥 ALL CLEARED + STORAGE WIPED');
+  updateStorageHUD();
+}
 
-  showToast('🗑 CANVAS + MEMORY CLEARED');
+// Clear single hand's strokes only
+function clearHandStrokes(handIdx) {
+  // Remove trails attributed to this hand (hue proximity check)
+  const targetHue = handStates[handIdx].drawHue;
+  for (let i = trails.length - 1; i >= 0; i--) {
+    const t = trails[i];
+    if (t.points.length > 0) {
+      const midHue = t.points[Math.floor(t.points.length / 2)].hue;
+      // Same hue ±60 degrees
+      const diff = Math.abs(((midHue - targetHue) + 360) % 360);
+      if (diff < 60 || diff > 300) trails.splice(i, 1);
+    }
+  }
+  handStates[handIdx].currentStroke = null;
+  handStates[handIdx].isPinching    = false;
+  saveTrailsToLS();
+  clearFlash.classList.remove('flash');
+  void clearFlash.offsetWidth;
+  clearFlash.classList.add('flash');
+  showToast(`🗑 HAND ${handIdx + 1} CLEARED`);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  DRAW HELPERS — heart, star, landmarks, trail
+//  DRAW HELPERS
 // ═══════════════════════════════════════════════════════════════
-
 function drawHeart(cx, cy, size, hue, alpha) {
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.05);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.05);
   const s = size / 16;
   ctx.beginPath();
   for (let t = 0; t <= Math.PI * 2; t += 0.05) {
     const hx = 16 * Math.pow(Math.sin(t), 3) * s;
-    const hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * s;
+    const hy = -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t)) * s;
     t === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
   }
   ctx.closePath();
-  ctx.fillStyle   = `hsla(${hue},100%,68%,${alpha})`;
-  ctx.shadowColor = `hsla(${hue},100%,68%,1)`;
-  ctx.shadowBlur  = 22;
-  ctx.fill();
-  ctx.shadowBlur  = 0;
-  ctx.restore();
+  ctx.fillStyle = `hsla(${hue},100%,68%,${alpha})`;
+  ctx.shadowColor = `hsla(${hue},100%,68%,1)`; ctx.shadowBlur = 22;
+  ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
 }
 
 function drawStar(cx, cy, outerR, hue, alpha) {
   const innerR = outerR * 0.42;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-Math.PI / 2);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-Math.PI / 2);
   ctx.beginPath();
   for (let i = 0; i < 10; i++) {
-    const r     = i % 2 === 0 ? outerR : innerR;
-    const angle = (Math.PI / 5) * i;
-    i === 0 ? ctx.moveTo(Math.cos(angle)*r, Math.sin(angle)*r)
-            : ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+    const r = i % 2 === 0 ? outerR : innerR;
+    const a = (Math.PI / 5) * i;
+    i === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r) : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
   }
   ctx.closePath();
-  ctx.fillStyle   = `hsla(${hue},100%,65%,${alpha})`;
-  ctx.shadowColor = `hsla(${hue},100%,70%,1)`;
-  ctx.shadowBlur  = 28;
-  ctx.fill();
-  ctx.shadowBlur  = 0;
-  ctx.restore();
+  ctx.fillStyle = `hsla(${hue},100%,65%,${alpha})`;
+  ctx.shadowColor = `hsla(${hue},100%,70%,1)`; ctx.shadowBlur = 28;
+  ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
 }
 
-function drawLandmarks(lm, W, H) {
+function drawLandmarks(lm, W, H, handIdx) {
+  const isH2   = handIdx === 1;
+  const cColor = isH2 ? 'rgba(255,102,0,' : 'rgba(0,245,255,';
   const CONN = [
     [0,1],[1,2],[2,3],[3,4],
     [0,5],[5,6],[6,7],[7,8],
@@ -1151,9 +1197,9 @@ function drawLandmarks(lm, W, H) {
     [5,9],[9,13],[13,17],
   ];
   ctx.save();
-  ctx.strokeStyle = 'rgba(0,245,255,0.5)';
-  ctx.lineWidth   = 1.5;
-  ctx.shadowColor = 'rgba(0,245,255,0.9)';
+  ctx.strokeStyle = `${cColor}0.5)`;
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = `${cColor}0.9)`;
   ctx.shadowBlur  = 5;
   for (const [a, b] of CONN) {
     ctx.beginPath();
@@ -1162,31 +1208,23 @@ function drawLandmarks(lm, W, H) {
     ctx.stroke();
   }
   for (let i = 0; i < lm.length; i++) {
-    const px = (1-lm[i].x)*W;
-    const py = lm[i].y*H;
+    const px = (1-lm[i].x)*W, py = lm[i].y*H;
     const isTip = [4,8,12,16,20].includes(i);
     const r = isTip ? 5 : 3;
-    ctx.beginPath();
-    ctx.arc(px, py, r, 0, Math.PI*2);
-    ctx.fillStyle   = isTip ? 'rgba(255,255,255,0.95)' : 'rgba(0,245,255,0.8)';
-    ctx.shadowColor = isTip ? '#ffffff' : 'rgba(0,245,255,1)';
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2);
+    ctx.fillStyle   = isTip ? 'rgba(255,255,255,0.95)' : `${cColor}0.8)`;
+    ctx.shadowColor = isTip ? '#ffffff' : `${cColor}1)`;
     ctx.shadowBlur  = isTip ? 14 : 6;
     ctx.fill();
   }
   ctx.restore();
 }
 
-/**
- * drawTrail — renders a smooth glowing polyline.
- * Uses state.strokeWidth for dynamic thickness.
- */
 function drawTrail(points, alpha, strokeWidth) {
   if (points.length < 2) return;
-  const sw = strokeWidth || state.strokeWidth;
+  const sw = strokeWidth || 3;
   ctx.save();
-  ctx.lineCap  = 'round';
-  ctx.lineJoin = 'round';
-
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let pass = 0; pass < 2; pass++) {
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
@@ -1196,18 +1234,14 @@ function drawTrail(points, alpha, strokeWidth) {
       ctx.quadraticCurveTo(points[i].x, points[i].y, mx, my);
     }
     ctx.lineTo(points[points.length-1].x, points[points.length-1].y);
-
     const midPt = points[Math.floor(points.length / 2)];
-    const h     = midPt.hue;
-
+    const h = midPt.hue || 180;
     if (pass === 0) {
-      // Outer glow pass — thickness proportional to strokeWidth
       ctx.lineWidth   = sw * 2.8 + 2;
       ctx.strokeStyle = `hsla(${h},100%,62%,${alpha * 0.28})`;
       ctx.shadowColor = `hsla(${h},100%,70%,1)`;
       ctx.shadowBlur  = 18 + sw;
     } else {
-      // Inner bright core
       ctx.lineWidth   = sw;
       ctx.strokeStyle = `hsla(${h},100%,85%,${alpha * 0.92})`;
       ctx.shadowColor = `hsla(${h},100%,95%,1)`;
@@ -1215,8 +1249,33 @@ function drawTrail(points, alpha, strokeWidth) {
     }
     ctx.stroke();
   }
-  ctx.shadowBlur = 0;
-  ctx.restore();
+  ctx.shadowBlur = 0; ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UPDATE HUD HAND STATUS PANELS
+// ═══════════════════════════════════════════════════════════════
+function updateHandHUD(handIdx, lm, gesture) {
+  const isH1  = handIdx === 0;
+  const status  = isH1 ? hand1Status  : hand2Status;
+  const dot     = isH1 ? hand1Dot     : hand2Dot;
+  const label   = isH1 ? hand1Label   : hand2Label;
+  const gestEl  = isH1 ? hand1Gesture : hand2Gesture;
+  const cls     = isH1 ? 'active-h1'  : 'active-h2';
+
+  if (lm) {
+    status.classList.add(cls);
+    dot.classList.add(cls);
+    label.classList.add('active');
+    gestEl.classList.add('active');
+    gestEl.textContent = gesture === 'IDLE' ? '—' : gesture;
+  } else {
+    status.classList.remove(cls);
+    dot.classList.remove(cls);
+    label.classList.remove('active');
+    gestEl.classList.remove('active');
+    gestEl.textContent = '—';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1224,248 +1283,261 @@ function drawTrail(points, alpha, strokeWidth) {
 // ═══════════════════════════════════════════════════════════════
 let lastFistTime  = 0;
 let lastPeaceTime = 0;
-let lastOpenTime  = 0;  // debounce clear
 
 function render(now) {
   requestAnimationFrame(render);
 
   const W  = canvas.width;
   const H  = canvas.height;
-  const dt = Math.min(now - lastFrameTime, 64); // cap at ~15fps min
+  const dt = Math.min(now - lastFrameTime, 64);
   lastFrameTime = now;
 
-  // ── FPS counter (rolling average of last 30 frames)
+  // ── FPS
   frameTimes.push(dt);
   if (frameTimes.length > 30) frameTimes.shift();
-  const avgDt = frameTimes.reduce((a,b)=>a+b,0) / frameTimes.length;
+  const avgDt = frameTimes.reduce((a,b) => a+b, 0) / frameTimes.length;
   fpsEl.textContent = `${Math.round(1000/avgDt)} fps`;
 
-  // ── Motion-blur clear (semi-transparent fill instead of clearRect)
-  ctx.fillStyle = 'rgba(3,8,16,0.36)';
+  // ── Canvas clear: semi-transparent for motion trail persistence
+  // Use very low alpha so old trails persist much longer
+  ctx.fillStyle = 'rgba(3,8,16,0.18)';
   ctx.fillRect(0, 0, W, H);
 
-  const lm = state.landmarks;
+  // ── PROCESS EACH HAND
+  const gestures = [null, null];
+  let   anyHandPresent = false;
 
-  // ── VELOCITY CALCULATION
-  if (lm) {
-    const idx = lm[8];
-    const ix  = (1-idx.x)*W;
-    const iy  = idx.y*H;
-    if (state.prevIndexTip) {
-      const rawVel = Math.hypot(ix-state.prevIndexTip.x, iy-state.prevIndexTip.y) / (dt/1000);
-      state.velocity = state.velocity*0.75 + rawVel*0.25;
+  for (let h = 0; h < 2; h++) {
+    const hs = handStates[h];
+    const lm = hs.landmarks;
+    const gesture = detectGesture(lm);
+    gestures[h] = gesture;
+
+    updateHandHUD(h, lm, gesture);
+
+    if (!lm) continue;
+    anyHandPresent = true;
+
+    // ── Per-hand velocity + hue shift
+    const idx  = lm[8];
+    const ix   = (1 - idx.x) * W;
+    const iy   = idx.y * H;
+    if (hs.prevIndexTip) {
+      const rawVel = Math.hypot(ix - hs.prevIndexTip.x, iy - hs.prevIndexTip.y) / (dt/1000);
+      hs.velocity  = hs.velocity * 0.75 + rawVel * 0.25;
     }
-    state.prevIndexTip = { x:ix, y:iy };
-    // Hue shifts with velocity
-    state.drawHue = (state.drawHue + (state.velocity/600)*6) % 360;
-    velEl.textContent = `${Math.round(state.velocity)} px/s`;
+    hs.prevIndexTip = { x: ix, y: iy };
+    hs.drawHue = (hs.drawHue + (hs.velocity / 600) * 6) % 360;
 
-    // Track + persist peak velocity
-    if (state.velocity > state.peakVelocity) {
-      state.peakVelocity = state.velocity;
-      peakVelEl.textContent = `${Math.round(state.peakVelocity)} px/s`;
-      lsSet(LS_KEYS.PEAK_VEL, Math.round(state.peakVelocity));
+    // Update global velocity display (use first hand)
+    if (h === 0) {
+      velEl.textContent = `${Math.round(hs.velocity)} px/s`;
+      if (hs.velocity > state.peakVelocity) {
+        state.peakVelocity = hs.velocity;
+        lsSet(LS_KEYS.PEAK_VEL, Math.round(state.peakVelocity));
+      }
+      // Update color swatch for hand 0
+      const cssHue = `hsl(${hs.drawHue},100%,65%)`;
+      colorSwatch.style.background = cssHue;
+      colorSwatch.style.boxShadow  = `0 0 6px ${cssHue}`;
+      colorHueEl.textContent = `${Math.round(hs.drawHue)}°`;
+      lsSet(LS_KEYS.LAST_HUE, Math.round(hs.drawHue));
     }
 
-    // Persist last used color hue every ~1 second
-    lsSet(LS_KEYS.LAST_HUE, Math.round(state.drawHue));
+    updateStrokeWidth(lm, hs);
 
-    // Update HUD color display
-    const cssHue = `hsl(${state.drawHue},100%,65%)`;
-    colorSwatch.style.background = cssHue;
-    colorSwatch.style.boxShadow  = `0 0 6px ${cssHue}`;
-    colorHueEl.textContent = `${Math.round(state.drawHue)}°`;
-
-    // Dynamic stroke width from spread
-    updateStrokeWidth(lm);
-
-  } else {
-    state.velocity *= 0.85;
-    velEl.textContent = '— px/s';
-  }
-
-  // ── GESTURE DETECTION
-  const gesture = detectGesture(lm);
-
-  if (gesture !== state.lastGesture) {
-    state.lastGesture = gesture;
-    if (gesture !== 'IDLE') {
-      gestureEl.textContent = gesture;
-      gestureEl.classList.add('visible');
-      state.gestureTimer = 1800;
-    }
-  }
-  if (state.gestureTimer > 0) {
-    state.gestureTimer -= dt;
-    if (state.gestureTimer <= 0) gestureEl.classList.remove('visible');
-  }
-
-  // ── PINCH → DRAW
-  if (lm) {
-    const ix = (1-lm[8].x)*W;
-    const iy = lm[8].y*H;
-
+    // ── PINCH → DRAW (per hand)
     if (gesture === 'PINCH') {
-      if (!state.isPinching) {
-        currentStroke    = [];
-        state.isPinching = true;
+      if (!hs.isPinching) {
+        hs.currentStroke = [];
+        hs.isPinching    = true;
       }
-      if (currentStroke) {
-        currentStroke.push({ x:ix, y:iy, hue:state.drawHue, sw:state.strokeWidth });
+      if (hs.currentStroke) {
+        hs.currentStroke.push({ x: ix, y: iy, hue: hs.drawHue, sw: hs.strokeWidth });
       }
     } else {
-      if (state.isPinching && currentStroke && currentStroke.length > 1) {
-        trails.push({ points:[...currentStroke], alpha:1.0, sw:state.strokeWidth });
-        currentStroke = null;
+      if (hs.isPinching && hs.currentStroke && hs.currentStroke.length > 1) {
+        trails.push({ points: [...hs.currentStroke], alpha: 1.0, sw: hs.strokeWidth });
+        saveTrailsToLS();
       }
-      state.isPinching = false;
+      hs.currentStroke = null;
+      hs.isPinching    = false;
     }
 
-    // ── FIST → hold 3s for screenshot, instant burst
-    if (gesture === 'FIST') {
-      if (!state.fistHolding) {
-        state.fistHolding   = true;
-        state.fistHoldStart = now;
-        state.fistDone      = false;
+    // ── OPEN PALM 2s → Clear THIS hand's trails
+    if (gesture === 'OPEN') {
+      if (!hs.openHolding) {
+        hs.openHolding   = true;
+        hs.openHoldStart = now;
       }
-      const holdPct = Math.min(1, (now - state.fistHoldStart) / FIST_HOLD_MS);
-      // Show progress ring
-      fistRingWrap.classList.add('visible');
-      fistRingProg.style.strokeDashoffset = `${RING_CIRCUMFERENCE * (1-holdPct)}`;
-      fistRingText.textContent = holdPct >= 1 ? '📸\nSAVED!' : `HOLD\n✊`;
-
-      // Particle burst every 600ms while holding
-      if (now - lastFistTime > 600) {
-        const wx = (1-lm[0].x)*W;
-        const wy = lm[0].y*H;
-        spawnBurst(wx, wy, 50, state.drawHue);
-        lastFistTime = now;
-      }
-
-      // Screenshot when hold completes
-      if (holdPct >= 1 && !state.fistDone) {
-        state.fistDone = true;
-        takeScreenshot();
+      const heldMs  = now - hs.openHoldStart;
+      const holdPct = Math.min(1, heldMs / OPEN_HOLD_MS);
+      // Show open ring
+      openRingWrap.classList.add('visible');
+      openRingProg.style.strokeDashoffset = `${OPEN_CIRC * (1 - holdPct)}`;
+      if (holdPct >= 1) {
+        clearHandStrokes(h);
+        hs.openHolding   = false;
+        hs.openHoldStart = now + 4000; // debounce 4s
+        openRingWrap.classList.remove('visible');
+        openRingProg.style.strokeDashoffset = `${OPEN_CIRC}`;
       }
     } else {
-      // Reset fist hold
-      if (state.fistHolding) {
-        state.fistHolding = false;
-        state.fistDone    = false;
-        fistRingWrap.classList.remove('visible');
-        fistRingProg.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
+      if (hs.openHolding && (now - hs.openHoldStart) < OPEN_HOLD_MS) {
+        // Reset if gesture released before completion
+        hs.openHolding = false;
+        openRingWrap.classList.remove('visible');
+        openRingProg.style.strokeDashoffset = `${OPEN_CIRC}`;
       }
     }
 
-    // ── PEACE ✌ → spawn shape (1s debounce)
+    // ── PEACE → spawn shape (1s debounce)
     if (gesture === 'PEACE' && now - lastPeaceTime > 1000) {
-      const midX = (1-lm[9].x)*W;
-      const midY = lm[9].y*H - 30;
-      spawnShape(midX, midY);
+      spawnShape((1 - lm[9].x) * W, lm[9].y * H - 30);
       lastPeaceTime = now;
     }
 
-    // ── OPEN PALM 👋 → clear everything (hold 1.5s, then debounce 4s)
-    if (gesture === 'OPEN') {
-      if (!state.openHolding) {
-        state.openHolding   = true;
-        state.openHoldStart = now;
-      }
-      const heldMs = now - state.openHoldStart;
-      if (heldMs > 1500 && now - lastOpenTime > 4000) {
-        clearAll();
-        lastOpenTime = now;
-      }
-    } else {
-      state.openHolding = false;
-    }
-
-    // ── PINCH indicator ring
-    if (gesture === 'PINCH' && lm) {
-      const tx  = (1-lm[4].x)*W; const ty = lm[4].y*H;
-      const idx2 = (1-lm[8].x)*W; const idy = lm[8].y*H;
-      const mx  = (tx+idx2)/2;    const my  = (ty+idy)/2;
-      ctx.beginPath();
-      ctx.arc(mx, my, 10, 0, Math.PI*2);
-      ctx.strokeStyle = `hsla(${state.drawHue},100%,75%,0.9)`;
+    // ── Draw pinch indicator ring
+    if (gesture === 'PINCH') {
+      const tx  = (1-lm[4].x)*W, ty  = lm[4].y*H;
+      const idx2 = (1-lm[8].x)*W, idy = lm[8].y*H;
+      const mx = (tx+idx2)/2, my = (ty+idy)/2;
+      ctx.beginPath(); ctx.arc(mx, my, 10, 0, Math.PI*2);
+      ctx.strokeStyle = `hsla(${hs.drawHue},100%,75%,0.9)`;
       ctx.lineWidth   = 2;
-      ctx.shadowColor = `hsla(${state.drawHue},100%,75%,1)`;
-      ctx.shadowBlur  = 20;
-      ctx.stroke();
-      ctx.shadowBlur  = 0;
+      ctx.shadowColor = `hsla(${hs.drawHue},100%,75%,1)`;
+      ctx.shadowBlur  = 20; ctx.stroke(); ctx.shadowBlur = 0;
     }
-  } else {
-    // Hand lost — reset fist/open hold
-    if (state.fistHolding) {
-      state.fistHolding = false;
-      fistRingWrap.classList.remove('visible');
-      fistRingProg.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
-    }
-    state.openHolding = false;
   }
 
-  // ── DRAW FADING TRAILS
-  for (let t = trails.length-1; t >= 0; t--) {
+  // ── DUAL FIST DETECTION: Both hands fist → hold 3s → clear all + wipe storage
+  const bothFist = gestures[0] === 'FIST' && gestures[1] === 'FIST'
+                   && handStates[0].landmarks && handStates[1].landmarks;
+  // Single fist (only one hand) → screenshot after 3s
+  const singleFist = (gestures[0] === 'FIST' && !handStates[1].landmarks) ||
+                     (gestures[1] === 'FIST' && !handStates[0].landmarks);
+
+  if (bothFist) {
+    // Nuclear clear
+    if (!state.fistHolding) {
+      state.fistHolding   = true;
+      state.fistHoldStart = now;
+      state.fistDone      = false;
+    }
+    const holdPct = Math.min(1, (now - state.fistHoldStart) / FIST_HOLD_MS);
+    fistRingWrap.classList.add('visible');
+    fistRingProg.style.strokeDashoffset = `${RING_CIRC * (1 - holdPct)}`;
+    fistRingText.textContent = holdPct >= 1 ? '💥\nCLEARED!' : 'BOTH\nFIST ✊';
+    // Particle burst from both wrists
+    if (now - lastFistTime > 600) {
+      for (let h = 0; h < 2; h++) {
+        if (handStates[h].landmarks) {
+          const lm = handStates[h].landmarks;
+          spawnBurst((1-lm[0].x)*W, lm[0].y*H, 30, handStates[h].drawHue);
+        }
+      }
+      lastFistTime = now;
+    }
+    if (holdPct >= 1 && !state.fistDone) {
+      state.fistDone = true; clearAll();
+    }
+  } else if (singleFist) {
+    // Screenshot
+    const activeH = gestures[0] === 'FIST' ? 0 : 1;
+    const lm      = handStates[activeH].landmarks;
+    if (!state.fistHolding) {
+      state.fistHolding   = true;
+      state.fistHoldStart = now;
+      state.fistDone      = false;
+    }
+    const holdPct = Math.min(1, (now - state.fistHoldStart) / FIST_HOLD_MS);
+    fistRingWrap.classList.add('visible');
+    fistRingProg.style.strokeDashoffset = `${RING_CIRC * (1 - holdPct)}`;
+    fistRingText.textContent = holdPct >= 1 ? '📸\nSAVED!' : 'HOLD\n✊';
+    if (now - lastFistTime > 600) {
+      spawnBurst((1-lm[0].x)*W, lm[0].y*H, 40, handStates[activeH].drawHue);
+      lastFistTime = now;
+    }
+    if (holdPct >= 1 && !state.fistDone) {
+      state.fistDone = true; takeScreenshot();
+    }
+  } else {
+    if (state.fistHolding) {
+      state.fistHolding = false; state.fistDone = false;
+      fistRingWrap.classList.remove('visible');
+      fistRingProg.style.strokeDashoffset = `${RING_CIRC}`;
+    }
+  }
+
+  // ── Show global gesture badge for most notable gesture
+  const topGesture = gestures.find(g => g && g !== 'IDLE') || 'IDLE';
+  if (topGesture !== 'IDLE') {
+    gestureEl.textContent = topGesture;
+    gestureEl.classList.add('visible');
+  } else {
+    gestureEl.classList.remove('visible');
+  }
+
+  // ── DRAW PERSISTENT TRAILS (no fading — persistent drawing)
+  for (let t = 0; t < trails.length; t++) {
     const trail = trails[t];
-    trail.alpha -= 0.004 * (dt/16);
-    if (trail.alpha <= 0) { trails.splice(t, 1); continue; }
     drawTrail(trail.points, trail.alpha, trail.sw);
   }
 
-  // ── DRAW ACTIVE (live) STROKE
-  if (currentStroke && currentStroke.length > 1) {
-    drawTrail(currentStroke, 1.0, state.strokeWidth);
+  // ── DRAW ACTIVE (live) STROKES for each hand
+  for (let h = 0; h < 2; h++) {
+    const hs = handStates[h];
+    if (hs.currentStroke && hs.currentStroke.length > 1) {
+      drawTrail(hs.currentStroke, 1.0, hs.strokeWidth);
+    }
   }
 
-  // ── UPDATE & DRAW PARTICLES
-  for (let i = particles.length-1; i >= 0; i--) {
+  // ── PARTICLES
+  for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x  += p.vx;
-    p.y  += p.vy;
-    p.vy += 0.12;  // gravity
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12;
     p.life -= 0.018 * (dt/16);
-    if (p.life <= 0) { particles.splice(i,1); continue; }
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
     const r = p.size * p.life;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI*2);
     ctx.fillStyle   = `hsla(${p.hue},100%,70%,${p.life})`;
     ctx.shadowColor = `hsla(${p.hue},100%,80%,1)`;
-    ctx.shadowBlur  = 10;
-    ctx.fill();
+    ctx.shadowBlur  = 10; ctx.fill();
   }
   ctx.shadowBlur = 0;
 
-  // ── UPDATE & DRAW FLOATING SHAPES
-  for (let i = floatingShapes.length-1; i >= 0; i--) {
+  // ── FLOATING SHAPES
+  for (let i = floatingShapes.length - 1; i >= 0; i--) {
     const sh  = floatingShapes[i];
     const age = now - sh.birth;
-    if (age > sh.life) { floatingShapes.splice(i,1); continue; }
+    if (age > sh.life) { floatingShapes.splice(i, 1); continue; }
     const t = age / sh.life;
     sh.scale   = t < 0.15 ? t/0.15 : t > 0.75 ? 1-(t-0.75)/0.25 : 1;
-    sh.opacity = sh.scale;
-    sh.y      += sh.vy;
+    sh.opacity = sh.scale; sh.y += sh.vy;
     const size = 42 * sh.scale;
     if (size < 0.5) continue;
     if (sh.type === 'heart') drawHeart(sh.x, sh.y, size, sh.hue, sh.opacity);
     else                     drawStar (sh.x, sh.y, size, sh.hue, sh.opacity);
   }
 
-  // ── DRAW HAND SKELETON (top layer)
-  if (lm) drawLandmarks(lm, W, H);
+  // ── DRAW HAND SKELETONS (top layer)
+  for (let h = 0; h < 2; h++) {
+    const hs = handStates[h];
+    if (hs.landmarks) drawLandmarks(hs.landmarks, W, H, h);
+  }
 }
 
 // ── KICK OFF
 requestAnimationFrame(render);
 
-// ── INIT: open DB + load gallery + restore peak vel display
+// ── INIT
 (async () => {
   try {
     await openDB();
-    peakVelEl.textContent = `${Math.round(state.peakVelocity)} px/s`;
     await refreshGallery();
     await updateStorageHUD();
-    // Refresh storage display every 10s
     setInterval(updateStorageHUD, 10000);
+    console.log('[Init] DB ready, trails loaded:', trails.length);
   } catch (e) {
     console.warn('[DB]', e);
   }
